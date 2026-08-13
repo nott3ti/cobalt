@@ -1903,11 +1903,14 @@ MainSection:CreateCheckbox("EnableRemoteSpy", {
 			else
 				wax.shared.Sonner.error(`Failed to enable remote spy: {Err}`)
 			end
-			return
+		else
+			wax.shared.StopRemoteSpy()
+			wax.shared.Sonner.success("Remote spy paused (hooks idle)")
 		end
 
-		wax.shared.StopRemoteSpy()
-		wax.shared.Sonner.success("Remote spy paused (hooks idle)")
+		if wax.shared.UpdateRemoteSpyIdleUI then
+			wax.shared.UpdateRemoteSpyIdleUI()
+		end
 	end,
 })
 
@@ -3386,6 +3389,30 @@ CreateTopButton("minus", 4, function()
 	ShowButton.Visible = true
 end)
 CreateTopSeperator(3)
+do
+	-- Clear labeled Settings button (icon-only controls are easy to miss)
+	local SettingsTextButton = Interface.New("TextButton", {
+		LayoutOrder = 2,
+		AutomaticSize = Enum.AutomaticSize.X,
+		Size = UDim2.fromScale(0, 1),
+		BackgroundColor3 = Color3.fromRGB(40, 40, 40),
+		Text = "  Settings  ",
+		TextSize = 14,
+		TextColor3 = Color3.fromRGB(230, 230, 230),
+		Parent = TopButtons,
+
+		["UICorner"] = {
+			CornerRadius = UDim.new(0, 4),
+		},
+		["UIPadding"] = {
+			PaddingLeft = UDim.new(0, 4),
+			PaddingRight = UDim.new(0, 4),
+		},
+	})
+	SettingsTextButton.MouseButton1Click:Connect(function()
+		OpenModal(SettingsFrame)
+	end)
+end
 CreateTopButton("settings", 2, function()
 	OpenModal(SettingsFrame)
 end)
@@ -3544,6 +3571,76 @@ LogsList = Interface.New("ScrollingFrame", {
 		PaddingBottom = UDim.new(0, 2),
 	},
 })
+
+-- Big idle panel so Enable Remote Spy is obvious when spy starts OFF
+local SpyIdleOverlay = Interface.New("Frame", {
+	BackgroundColor3 = Color3.fromRGB(18, 18, 18),
+	Size = UDim2.fromScale(1, 1),
+	ZIndex = 20,
+	Visible = true,
+	Parent = LogsWrapper,
+
+	["UICorner"] = {
+		CornerRadius = UDim.new(0, 6),
+	},
+})
+
+Interface.New("TextLabel", {
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0.5, 0, 0.5, -46),
+	Size = UDim2.new(1, -24, 0, 28),
+	Text = "Remote Spy is OFF",
+	TextSize = 22,
+	TextColor3 = Color3.fromRGB(240, 240, 240),
+	Font = Enum.Font.GothamBold,
+	Parent = SpyIdleOverlay,
+})
+
+Interface.New("TextLabel", {
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0.5, 0, 0.5, -14),
+	Size = UDim2.new(1, -32, 0, 40),
+	Text = "Nothing will log until you enable it.\nSettings is also in the top-right.",
+	TextSize = 14,
+	TextColor3 = Color3.fromRGB(170, 170, 170),
+	TextWrapped = true,
+	Parent = SpyIdleOverlay,
+})
+
+local SpyIdleEnableButton = Interface.New("TextButton", {
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	BackgroundColor3 = Color3.fromRGB(52, 199, 89),
+	Position = UDim2.new(0.5, 0, 0.5, 36),
+	Size = UDim2.fromOffset(200, 36),
+	Text = "Enable Remote Spy",
+	TextSize = 16,
+	TextColor3 = Color3.fromRGB(15, 15, 15),
+	Font = Enum.Font.GothamBold,
+	Parent = SpyIdleOverlay,
+
+	["UICorner"] = {
+		CornerRadius = UDim.new(0, 6),
+	},
+})
+
+SpyIdleEnableButton.MouseButton1Click:Connect(function()
+	local Setting = wax.shared.Settings and wax.shared.Settings.EnableRemoteSpy
+	if Setting and Setting.SetValue then
+		Setting:SetValue(true)
+		return
+	end
+	pcall(wax.shared.StartRemoteSpy)
+	if wax.shared.UpdateRemoteSpyIdleUI then
+		wax.shared.UpdateRemoteSpyIdleUI()
+	end
+end)
+
+wax.shared.UpdateRemoteSpyIdleUI = function()
+	SpyIdleOverlay.Visible = not wax.shared.RemoteSpyEnabled
+end
+wax.shared.UpdateRemoteSpyIdleUI()
 
 local LogsPagination = Interface.New("Frame", {
 	AnchorPoint = Vector2.yAxis,
