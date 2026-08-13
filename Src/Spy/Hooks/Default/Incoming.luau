@@ -43,6 +43,10 @@ local function LogRemote(
 		IsExecutor: boolean,
 	}
 )
+	if not wax.shared.RemoteSpyEnabled then
+		return false
+	end
+
 	if not wax.shared.ShouldIgnore(Instance, getcallingscript()) and not LogConnectionFunctions[Function] then
 		local Log = wax.shared.Logs.Incoming[Instance]
 		if not Log then

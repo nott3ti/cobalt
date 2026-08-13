@@ -96,7 +96,8 @@ wax.shared.NamecallHook = wax.shared.Hooking.HookMetaMethod(game, "__namecall", 
 	local Method = getnamecallmethod()
 
 	if
-		typeof(self) == "Instance"
+		wax.shared.RemoteSpyEnabled
+		and typeof(self) == "Instance"
 		and AllowedClassNames[self.ClassName]
 		and not rawequal(self, wax.shared.Communicator)
 		and not rawequal(self, wax.shared.ActorCommunicator)
@@ -187,7 +188,8 @@ for _, Function in next, FunctionsToHook do
 		local self = ...
 
 		if
-			typeof(self) == "Instance"
+			wax.shared.RemoteSpyEnabled
+			and typeof(self) == "Instance"
 			and AllowedClassNames[self.ClassName]
 			and not rawequal(self, wax.shared.Communicator)
 			and not wax.shared.ShouldIgnore(self, getcallingscript())

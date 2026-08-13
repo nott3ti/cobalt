@@ -328,8 +328,29 @@ wax.shared.NewLog = function(Instance, Type, Method, CallingScript)
 	return Log
 end
 
+wax.shared.RemoteSpyEnabled = false
+wax.shared.RemoteSpyStarted = false
+
+wax.shared.StartRemoteSpy = function()
+	wax.shared.RemoteSpyEnabled = true
+	if wax.shared.RemoteSpyStarted or getgenv().CobaltInitialized then
+		return true
+	end
+	wax.shared.RemoteSpyStarted = true
+	require(script.Spy.Init)
+	return true
+end
+
+wax.shared.StopRemoteSpy = function()
+	wax.shared.RemoteSpyEnabled = false
+end
+
 require(script.Window)
-require(script.Spy.Init)
+
+-- Remote spy starts OFF — enable via Settings → Main → Enable Remote Spy
+if wax.shared.SaveManager:GetState("EnableRemoteSpy", false) then
+	wax.shared.StartRemoteSpy()
+end
 
 local PluginManager = require(script.Utils.Plugins.Manager)
 PluginManager.SetupPlugins()
@@ -343,7 +364,7 @@ wax.shared.Connect(wax.shared.LocalPlayer.OnTeleport:Connect(function()
 
 	-- getgenv().COBALT_LATEST_URL for dev environments
 	local CobaltURL = getgenv().COBALT_LATEST_URL
-		or "https://github.com/notpoiu/cobalt/releases/latest/download/Cobalt.luau"
+		or "https://github.com/nott3ti/cobalt/releases/latest/download/Cobalt.luau"
 	wax.shared.queue_on_teleport(string.format(
 		[[
 		if getgenv().CobaltAutoExecuted then

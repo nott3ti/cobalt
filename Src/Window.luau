@@ -1892,6 +1892,25 @@ CodeGenSection:CreateCheckbox("ShowWatermark", {
 
 local MainSection = MainSettings:CreateSection("Main")
 
+MainSection:CreateCheckbox("EnableRemoteSpy", {
+	Text = "Enable Remote Spy",
+	Default = false,
+	Callback = function(value)
+		if value then
+			local Ok, Err = pcall(wax.shared.StartRemoteSpy)
+			if Ok then
+				wax.shared.Sonner.success("Remote spy enabled")
+			else
+				wax.shared.Sonner.error(`Failed to enable remote spy: {Err}`)
+			end
+			return
+		end
+
+		wax.shared.StopRemoteSpy()
+		wax.shared.Sonner.success("Remote spy paused (hooks idle)")
+	end,
+})
+
 MainSection:CreateDropdown("WindowDPIScale", {
 	Text = "DPI Scale",
 	Values = {

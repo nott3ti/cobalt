@@ -86,6 +86,10 @@ if wax.shared.ActorsEnabled then
 	end
 
 	wax.shared.Connect(Channel.Event:Connect(function(EventType, ...)
+		if not wax.shared.RemoteSpyEnabled then
+			return
+		end
+
 		local ShouldLogActors = wax.shared.SaveManager:GetState("LogActors", true)
 
 		if not ShouldLogActors then
