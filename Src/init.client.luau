@@ -126,6 +126,16 @@ wax.shared.ShouldIgnore = function(Instance, Origin)
 		or (wax.shared.Settings.IgnorePlayerModule.Value and wax.shared.IsPlayerModule(Origin, Instance))
 end
 
+-- High-frequency Magic Loot sync payloads (and similar) — skip before expensive logging.
+wax.shared.SkippedRemoteArg1 = {
+	["玩家信息结构"] = true,
+}
+
+wax.shared.ShouldSkipRemoteArgs = function(...)
+	local First = ...
+	return type(First) == "string" and wax.shared.SkippedRemoteArg1[First] == true
+end
+
 wax.shared.GetTableLength = function(Table)
 	if Table["n"] then
 		return Table.n

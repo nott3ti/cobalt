@@ -2025,7 +2025,7 @@ FilterSection:CreateDropdown("IgnoredRemotesDropdown", {
 
 FilterSection:CreateCheckbox("AutoIgnoreSpammyEvents", {
 	Text = "Auto Ignore Spammy Events",
-	Default = false,
+	Default = true,
 })
 
 FilterSection:CreateCheckbox("LogActors", {

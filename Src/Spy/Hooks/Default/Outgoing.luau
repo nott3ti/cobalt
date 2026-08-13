@@ -102,30 +102,45 @@ wax.shared.NamecallHook = wax.shared.Hooking.HookMetaMethod(game, "__namecall", 
 		and not rawequal(self, wax.shared.Communicator)
 		and not rawequal(self, wax.shared.ActorCommunicator)
 		and NamecallMethods[Method]
-		and not wax.shared.ShouldIgnore(self, getcallingscript())
 	then
+		-- Drop known high-frequency sync payloads before any expensive work.
+		if wax.shared.ShouldSkipRemoteArgs(select(2, ...)) then
+			return wax.shared.NamecallHook(...)
+		end
+
 		local Log = wax.shared.Logs.Outgoing[self]
 		if not Log then
-			Log = wax.shared.NewLog(self, "Outgoing", Method, getcallingscript())
+			Log = wax.shared.NewLog(self, "Outgoing", Method, nil)
 		end
 
 		if Log.Blocked then
 			return
 		elseif not Log.Ignored then
+			-- Cheap spam gate before debug.info / DeepClone / UI notify.
+			if Log:IsOverSpamThreshold() then
+				return wax.shared.NamecallHook(...)
+			end
+
+			local Origin = getcallingscript()
+			if wax.shared.ShouldIgnore(self, Origin) then
+				return wax.shared.NamecallHook(...)
+			end
+
 			local Info = {
 				Arguments = table.pack(select(2, ...)),
-				Origin = getcallingscript(),
+				Origin = Origin,
 				Function = getcallingfunction(),
 				Line = getcallingline(),
 				Source = getcallingsource(),
 				IsExecutor = checkcaller(),
+				SpamChecked = true,
 			}
 			Log:Call(Info)
 			-- For RemoteFunction return value (ex: local result = RemoteFunction:InvokeServer())
 			if self.ClassName == "RemoteFunction" and (Method == "InvokeServer" or Method == "invokeServer") then
 				Log = wax.shared.Logs.Incoming[self]
 				if not Log then
-					Log = wax.shared.NewLog(self, "Incoming", Method, getcallingscript())
+					Log = wax.shared.NewLog(self, "Incoming", Method, Origin)
 				end
 
 				if Log.Blocked then
@@ -133,15 +148,16 @@ wax.shared.NamecallHook = wax.shared.Hooking.HookMetaMethod(game, "__namecall", 
 				end
 
 				local Result = table.pack(wax.shared.NamecallHook(...))
-				if not Log.Ignored then
+				if not Log.Ignored and not Log:IsOverSpamThreshold() then
 					local RFResultInfo = {
 						Arguments = Result,
-						Origin = getcallingscript(),
+						Origin = Origin,
 						Function = getcallingfunction(),
 						Line = getcallingline(),
 						Source = getcallingsource(),
 						IsExecutor = checkcaller(),
 						OriginalInvokeArgs = table.pack(select(2, ...)),
+						SpamChecked = true,
 					}
 					Log:Call(RFResultInfo)
 				end
@@ -192,30 +208,43 @@ for _, Function in next, FunctionsToHook do
 			and typeof(self) == "Instance"
 			and AllowedClassNames[self.ClassName]
 			and not rawequal(self, wax.shared.Communicator)
-			and not wax.shared.ShouldIgnore(self, getcallingscript())
 		then
+			if wax.shared.ShouldSkipRemoteArgs(select(2, ...)) then
+				return wax.shared.Hooks[Function](...)
+			end
+
 			local Log = wax.shared.Logs.Outgoing[self]
 			if not Log then
-				Log = wax.shared.NewLog(self, "Outgoing", Method, getcallingscript())
+				Log = wax.shared.NewLog(self, "Outgoing", Method, nil)
 			end
 
 			if Log.Blocked then
 				return
 			elseif not Log.Ignored then
+				if Log:IsOverSpamThreshold() then
+					return wax.shared.Hooks[Function](...)
+				end
+
+				local Origin = getcallingscript()
+				if wax.shared.ShouldIgnore(self, Origin) then
+					return wax.shared.Hooks[Function](...)
+				end
+
 				local Info = {
 					Arguments = table.pack(select(2, ...)),
-					Origin = getcallingscript(),
+					Origin = Origin,
 					Function = getcallingfunction(),
 					Line = getcallingline(),
 					Source = getcallingsource(),
 					IsExecutor = checkcaller(),
+					SpamChecked = true,
 				}
 				Log:Call(Info)
 				-- For RemoteFunction return value (ex: local result = RemoteFunction:InvokeServer())
 				if self.ClassName == "RemoteFunction" and (Method == "InvokeServer" or Method == "invokeServer") then
 					Log = wax.shared.Logs.Incoming[self]
 					if not Log then
-						Log = wax.shared.NewLog(self, "Incoming", Method, getcallingscript())
+						Log = wax.shared.NewLog(self, "Incoming", Method, Origin)
 					end
 
 					if Log.Blocked then
@@ -223,15 +252,16 @@ for _, Function in next, FunctionsToHook do
 					end
 
 					local Result = table.pack(wax.shared.Hooks[Function](...))
-					if not Log.Ignored then
+					if not Log.Ignored and not Log:IsOverSpamThreshold() then
 						local RFResultInfo = {
 							Arguments = Result,
-							Origin = getcallingscript(),
+							Origin = Origin,
 							Function = getcallingfunction(),
 							Line = getcallingline(),
 							Source = getcallingsource(),
 							IsExecutor = checkcaller(),
 							OriginalInvokeArgs = table.pack(select(2, ...)),
+							SpamChecked = true,
 						}
 						Log:Call(RFResultInfo)
 					end

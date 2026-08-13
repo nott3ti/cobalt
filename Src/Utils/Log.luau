@@ -2,8 +2,9 @@ local Log = {}
 Log.__index = Log
 
 --// Auto Ignore Constants \\--
-local SpamCallCountThreshold = 15
-local SpamTimeWindowSeconds = 1
+local SpamCallCountThreshold = 5
+local SpamTimeWindowSeconds = 0.5
+local UiNotifyMinInterval = 0.1
 
 function Log.new(Instance, Type, Method, Index, CallingScript)
 	local NewLog = setmetatable({
@@ -54,7 +55,7 @@ function DeepClone(orig, copies)
 end
 
 function Log:IsOverSpamThreshold()
-	if not wax.shared.SaveManager:GetState("AutoIgnoreSpammyEvents", false) then
+	if not wax.shared.SaveManager:GetState("AutoIgnoreSpammyEvents", true) then
 		return false
 	end
 
@@ -70,9 +71,11 @@ function Log:IsOverSpamThreshold()
 	if #self.SpamHistory > SpamCallCountThreshold then
 		if not self.Ignored then
 			self:Ignore()
-			wax.shared.Sonner.info(`Ignored {self.Instance.Name} ({self.Type}) due to event spam.`)
+			if wax.shared.Sonner then
+				wax.shared.Sonner.info(`Ignored {self.Instance.Name} ({self.Type}) due to event spam.`)
+			end
 		end
-		
+
 		return true
 	end
 
@@ -92,15 +95,17 @@ local function RunInterceptors(Interceptors: { (...any) -> (...any) }, Info: any
 end
 
 function Log:Call(RawInfo)
-	local Success, Data = pcall(function()
-		return self:IsOverSpamThreshold()
-	end)
+	if self.Ignored then
+		return
+	end
 
-	if Success and Data then
+	-- Hooks may already gate spam before building call info; avoid double-counting.
+	if not RawInfo.SpamChecked and self:IsOverSpamThreshold() then
 		return
 	end
 
 	local Info = DeepClone(RawInfo)
+	Info.SpamChecked = nil
 	Info.CreationTime = tick()
 
 	local PluginManager = wax.shared.CobaltPluginManager
@@ -126,8 +131,29 @@ function Log:Call(RawInfo)
 		table.insert(self.GameCalls, Index)
 	end
 
+	-- Cap retained calls so spam cannot balloon memory before auto-ignore.
+	local MaxCalls = 250
+	if Index > MaxCalls then
+		local RemoveCount = Index - MaxCalls
+		for _ = 1, RemoveCount do
+			table.remove(self.Calls, 1)
+		end
+		table.clear(self.GameCalls)
+		for i, Call in self.Calls do
+			if not Call.IsExecutor then
+				table.insert(self.GameCalls, i)
+			end
+		end
+		Index = #self.Calls
+	end
+
 	if wax.shared.Communicator then
-		wax.shared.Communicator.Fire(wax.shared.Communicator, self.Instance, self.Type, #self.Calls)
+		local Now = tick()
+		local LastNotify = self.LastUiNotify or 0
+		if Now - LastNotify >= UiNotifyMinInterval then
+			self.LastUiNotify = Now
+			wax.shared.Communicator.Fire(wax.shared.Communicator, self.Instance, self.Type, Index)
+		end
 	end
 end
 
